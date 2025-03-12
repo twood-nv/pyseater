@@ -7,14 +7,17 @@ class Desk:
     def __init__(self, x, y) :
         self.x = x
         self.y = y
+        self.colour = "lightblue"
 
 
 class Pupil:
-    def __init__(self, name) :
+    def __init__(self, name, gender) :
         self.name = name
+        self.gender = gender
 
 
 # Do we want to watch the turtle do the drawing?
+# It's really slow, probably remove this soon ...
 do_animation = False
 
 # Declare collections
@@ -25,11 +28,11 @@ pupils = []
 datafile="data/pupils.csv"
 
 # Desk a.k.a. square size
-desk_size = 90
+desk_size = 50
 
 # Classroom a.k.a. grid dimensions
-n_cols = 5
-n_rows = 4
+n_cols = 10
+n_rows = 10
 
 # Compute pen start position on screen
 start_x = -(desk_size * (0.5 * n_cols))
@@ -39,9 +42,8 @@ start_y = (desk_size * (0.5 * n_rows))
 def read_pupils(filename) :
     with open(filename, 'r') as file:
         reader = csv.reader(file)
-        for row in reader:
-            pupil = Pupil(row[0])
-            pupils.append(Pupil(row[0]))
+        for row in reader :
+            pupils.append(Pupil(row[0].strip(), row[1].strip()))
 
 
 def get_pupil(index) :
@@ -50,51 +52,52 @@ def get_pupil(index) :
     return pupil
 
 
-def draw_classroom(pen, size, n_cols, n_rows):
-    pen.goto(start_x, start_y)
-    pen.pendown()
+def draw_classroom(n_cols, n_rows):
+    turtle.penup()
+    turtle.goto(start_x, start_y)
+    turtle.pendown()
     for _ in range(0, n_rows):
         for _ in range(0, n_cols):
             for _ in range(0, 4):
-                pen.forward(size)
-                pen.right(90)
-            pen.forward(size)
-        pen.penup()
-        pen.backward(size * n_cols)
-        pen.right(90)
-        pen.forward(size)
-        pen.left(90)
-        pen.pendown()
-    pen.penup()
-
-
-def draw_desk(turtle, size, color, desk):
-    pen.goto(start_x + (desk.x * size), start_y - (desk.y * size))
-    pen.pendown()
-    turtle.fillcolor(color)
-    turtle.begin_fill()
-    for _ in range(4):
-        turtle.forward(size)
+                turtle.forward(desk_size)
+                turtle.right(90)
+            turtle.forward(desk_size)
+        turtle.penup()
+        turtle.backward(desk_size * n_cols)
         turtle.right(90)
-    turtle.end_fill()
-    pen.penup()
+        turtle.forward(desk_size)
+        turtle.left(90)
+        turtle.pendown()
+    turtle.penup()
 
 
 def assign_desk(pupil, desk) :
-    pen.goto(start_x + (desk.x * desk_size) + (0.15 * desk_size), start_y - (desk.y * desk_size) - (0.5 * desk_size))
+    pen.goto(start_x + (desk.x * desk_size) + (0.10 * desk_size), start_y - (desk.y * desk_size) - (0.5 * desk_size))
     pen.pendown()
     pen.pencolor("black")
     pen.write(pupil.name)
     pen.penup()
 
 
-def draw_table() :
-    draw_desk(pen, desk_size, "lightblue", desks[0])
-    draw_desk(pen, desk_size, "lightblue", desks[1])
-    draw_desk(pen, desk_size, "lightblue", desks[2])
-    draw_desk(pen, desk_size, "lightblue", desks[3])
-    draw_desk(pen, desk_size, "lightblue", desks[4])
-    draw_desk(pen, desk_size, "lightblue", desks[5])
+def draw_desk(desk):
+    turtle.penup()
+    turtle.goto(start_x + (desk.x * desk_size), start_y - (desk.y * desk_size))
+    turtle.pendown()
+    turtle.fillcolor(desk.colour)
+    turtle.begin_fill()
+    for _ in range(4):
+        turtle.forward(desk_size)
+        turtle.right(90)
+    turtle.end_fill()
+    turtle.penup()
+
+
+def draw_table(x_start, x_length, y_start, y_length) :
+    for i in range(x_start, x_start + x_length) :
+        for j in range(y_start, y_start + y_length) :
+            desk = Desk(i, j)
+            desks.append(desk)
+            draw_desk(desk)
 
 
 def do_random_assignment() :
@@ -104,23 +107,18 @@ def do_random_assignment() :
 
     for i in range(0, n_pupils) :
         pupil = get_pupil(rng.randint(0, len(pupils) - 1))
+        if pupil.gender == "M" :
+            desks[i].colour = "lightblue"
+        else :
+            desks[i].colour = "lightpink"
+        draw_desk(desks[i])
         assign_desk(pupil, desks[i])
 
 
 def click_handler(x, y) :
     screen.onclick(None)
-    draw_table()
     do_random_assignment()
     screen.onclick(click_handler)
-
-
-# Create some desks
-desks.append(Desk(1,1))
-desks.append(Desk(1,2))
-desks.append(Desk(2,1))
-desks.append(Desk(2,2))
-desks.append(Desk(3,1))
-desks.append(Desk(3,2))
 
 
 screen = turtle.Screen()
@@ -135,8 +133,13 @@ else :
 
 pen.penup()
 
-draw_classroom(pen, desk_size, n_cols, n_rows)
-draw_table()
+draw_classroom(n_cols, n_rows)
+draw_table(0, 2, 2, 2)
+draw_table(4, 2, 2, 2)
+draw_table(0, 2, 6, 2)
+draw_table(4, 2, 6, 3)
+draw_table(8, 2, 6, 2)
+
 screen.onclick(click_handler)
 pen.hideturtle()
 screen.mainloop()
