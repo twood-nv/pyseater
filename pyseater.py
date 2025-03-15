@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 import turtle
 import csv
 import random as rng
@@ -16,9 +15,8 @@ class Desk:
     def __init__(self, x, y, orientate) :
         self.x = x
         self.y = y
-        self.colour = "lightblue"
         self.orientate = orientate
-        self.pupil = 0
+        self.pupil = Pupil("","M")
 
 
 class Table :
@@ -30,6 +28,10 @@ class Table :
             assert(y_length == 2)
         else :
             assert(x_length == 2)
+        self.desks = []
+
+    def add_desk(self, desk) :
+        self.desks.append(desk)
 
 
 class Pupil:
@@ -39,11 +41,10 @@ class Pupil:
 
 
 # Declare collections
-desks = []
-pupils = []
+tables = []
 
 # CSV containing pupil data
-datafile="data/pupils.csv"
+# datafile="data/pupils.csv"
 
 # Desk a.k.a. square size
 desk_size = 50
@@ -51,6 +52,9 @@ desk_size = 50
 # Classroom a.k.a. grid dimensions
 n_cols = 10
 n_rows = 10
+
+n_desks = 0
+n_pupils = 0
 
 # 2D array representing classroom 
 floorplan = [[0 for i in range(n_cols)] for j in range(n_rows)]
@@ -60,17 +64,15 @@ start_x = -(desk_size * (0.5 * n_cols))
 start_y = (desk_size * (0.5 * n_rows))
 
 
-def read_pupils(filename) :
-    with open(filename, 'r') as file:
+def read_pupils() :
+    with open("data/pupils.csv", 'r') as file:
         reader = csv.reader(file)
+        pupils = []
         for row in reader :
             pupils.append(Pupil(row[0].strip(), row[1].strip()))
-
-
-def get_pupil(index) :
-    pupil = pupils[index]
-    del pupils[index]
-    return pupil
+    global n_pupils
+    n_pupils = len(pupils)
+    return pupils
 
 
 def draw_classroom(n_cols, n_rows):
@@ -104,7 +106,10 @@ def draw_desk(desk):
     turtle.penup()
     turtle.goto(start_x + (desk.x * desk_size), start_y - (desk.y * desk_size))
     turtle.pendown()
-    turtle.fillcolor(desk.colour)
+    if desk.pupil.gender == "M" :
+        turtle.fillcolor("lightblue")
+    else :
+        turtle.fillcolor("lightpink")
     turtle.begin_fill()
     for side in range(4):
         if side == desk.orientate.value :
@@ -131,32 +136,32 @@ def draw_desk(desk):
 
 
 def add_table(x_start, y_start, table) :
+    tables.append(table)
     for x in range(x_start, x_start + table.x_length) :
         for y in range(y_start, y_start + table.y_length) :
-
             if table.divide == Divide.HORIZONTAL :
                 orientate = (Orientate.SOUTH if y == y_start  else Orientate.NORTH)
-
             else :
                 orientate = (Orientate.EAST if x == x_start  else Orientate.WEST)
-
-            desk = Desk(x, y, orientate)            
+            desk = Desk(x, y, orientate)
+            global n_desks
+            n_desks = n_desks + 1
             floorplan[x][y] = desk
-            desks.append(desk)
+            table.add_desk(desk)
 
 
 def do_random_assignment() :
-    read_pupils(datafile)
-    n_pupils = len(pupils)
-    assert n_pupils <= len(desks), "There are not enough desks."
-    for i in range(0, n_pupils) :
-        pupil = get_pupil(rng.randint(0, len(pupils) - 1))
-        desks[i].pupil = pupil
-        if pupil.gender == "M" :
-            desks[i].colour = "lightblue"
-        else :
-            desks[i].colour = "lightpink"
-        draw_desk(desks[i])
+    pupils = read_pupils()
+    assert n_pupils <= n_desks, "There are not enough desks."
+    for t in range(0, len(tables)) :
+        table = tables[t]
+        for d in range(0, len(table.desks)) :
+            desk = table.desks[d]
+            index = rng.randint(0, len(pupils) - 1)
+            pupil = pupils[index]
+            del pupils[index]
+            desk.pupil = pupil
+            draw_desk(desk)
 
 
 def click_handler(x, y) :
@@ -170,13 +175,6 @@ add_table(4, 2, Table(2, 2, Divide.VERTICAL))
 add_table(0, 6, Table(2, 2, Divide.HORIZONTAL))
 add_table(4, 6, Table(2, 3, Divide.VERTICAL))
 add_table(8, 6, Table(2, 2, Divide.HORIZONTAL))
-
-# for i in range(0, n_rows) : 
-#     for j in range(0, n_cols) :
-#         if floorplan[i][j] == 0 :
-#             print(str(i) + ":" + str(j) + " is empty")
-#         else :
-#             print(str(i) + ":" + str(j) + " has a " + str(floorplan[i][j].orientate) + " desk.")
 
 # Render
 screen = turtle.Screen()
