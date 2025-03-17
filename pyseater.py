@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 import turtle
 import csv
 import time
@@ -270,15 +269,14 @@ def pupil_swap_random(table, desk) :
 
 
 def pupil_swap_opposite(desk) :
-    match desk.orientate :
-        case Orientate.NORTH :
-            swap_pupils(desk, classroom[desk.x][desk.y - 1])
-        case Orientate.EAST : 
-            swap_pupils(desk, classroom[desk.x + 1][desk.y])
-        case Orientate.SOUTH : 
-            swap_pupils(desk, classroom[desk.x][desk.y + 1])
-        case Orientate.WEST : 
-            swap_pupils(desk, classroom[desk.x - 1][desk.y])
+    if desk.orientate == Orientate.NORTH :
+        swap_pupils(desk, classroom[desk.x][desk.y - 1])
+    elif desk.orientate == Orientate.EAST : 
+        swap_pupils(desk, classroom[desk.x + 1][desk.y])
+    elif desk.orientate == Orientate.SOUTH : 
+        swap_pupils(desk, classroom[desk.x][desk.y + 1])
+    elif desk.orientate == Orientate.WEST : 
+        swap_pupils(desk, classroom[desk.x - 1][desk.y])
 
 
 def pupil_swap_adjacent(desk) :
