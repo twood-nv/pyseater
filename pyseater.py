@@ -205,8 +205,8 @@ def find_adjacent(desk) :
 
 def solve() :
     iterations = 0
-    wait  = 0.1
-    show_evolution = False
+    wait  = 0.3
+    show_evolution = True
     start_time = time.time()
     while True :
         for i in range(0, len(tables)) :
@@ -241,11 +241,20 @@ def solve() :
                     table.fitness = table.fitness + 1
         # find unfit tables 
         unfit = []
+        max_fitness = 0
+        solution_fitness = 0
         for i in range(0, len(tables)) :
             # health = float(table.fitness) / float(len(table.desks)) * 100.
             # print("Table " + str(i) + " fitness = %.1f" % health)
+            max_fitness = max_fitness + len(tables[i].desks)
+            solution_fitness = solution_fitness + tables[i].fitness
+
             if tables[i].fitness != len(tables[i].desks) :                
                 unfit.append(tables[i])
+
+        if show_evolution == True :
+            solution_fitness = float(solution_fitness) / float(max_fitness)
+            print(str(iterations) + ": Solution fitness = " + "{:.2%}".format(solution_fitness))
 
         if len(unfit) == 0 :
             exec_time = (time.time() - start_time)
