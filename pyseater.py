@@ -6,8 +6,8 @@ import random as rng
 from enum import Enum
 
 
-Divide = Enum('String', [('HORIZONTAL', 0), ('VERTICAL', 1)])
-Orientate = Enum('String', [('NORTH', 0), ('EAST', 1), ('SOUTH', 2), ('WEST', 3)])
+Divide = Enum('Divide', [('HORIZONTAL', 0), ('VERTICAL', 1)])
+Orientate = Enum('Orientate', [('NORTH', 0), ('EAST', 1), ('SOUTH', 2), ('WEST', 3)])
 
 
 class Table :
@@ -15,10 +15,8 @@ class Table :
         self.x_length = x_length
         self.y_length = y_length
         self.divide = divide
-        if divide == Divide.HORIZONTAL :
-            assert(y_length == 2)
-        else :
-            assert(x_length == 2)
+        if divide == Divide.HORIZONTAL : assert(y_length == 2)
+        else : assert(x_length == 2)
         self.places = []
         self.fitness = 0
     def add_place(self, place) :
@@ -50,12 +48,6 @@ class Rule:
         self.boolean = boolean
 
 
-
-tables = []
-n_places = 0
-n_students = 0
-
-
 def str2bool(str) :
   return str.lower() in ("t", "true", "1")
 
@@ -63,8 +55,7 @@ def str2bool(str) :
 def parse_rule(rule_string):
     items = rule_string.split('=')
     key = items[0].strip() 
-    if len(items) > 1:
-        value = str2bool('='.join(items[1:]))
+    if len(items) > 1: value = str2bool('='.join(items[1:]))
     return (key, value)
 
 
@@ -87,6 +78,8 @@ def read_students() :
             for i in range(len(row)) :
                 s.set_attribute(keys[i], row[i])
             students.append(s)
+            if(len(students) == n_places) :
+                break
     global n_students
     n_students = len(students)
     return students
@@ -109,13 +102,19 @@ def draw_classroom(n_cols, n_rows):
         turtle.left(90)
         turtle.pendown()
     turtle.penup()
+    screen.update()
 
 
 def assign_place(place) :
-    turtle.goto(START_X + (place.x * args.place_size) + (0.2 * args.place_size), START_Y - (place.y * args.place_size) - (0.75 * args.place_size))
+    values = list(place.student.attributes.values())
+    n_items =  min(3, len(values))
+    adjust_vertical = n_items * 0.3
+    label = ""
+    for i in range(0, n_items) :
+        label += values[i] + "\n"
+    turtle.goto(START_X + (place.x * args.place_size) + (0.1 * args.place_size), START_Y - (place.y * args.place_size) - (adjust_vertical * args.place_size))
     turtle.pendown()
-    turtle.pencolor("black")
-    turtle.write(str(place.student.get_attribute("name")) + "\n" + str(place.student.get_attribute("language")) + "\n" + str(place.student.get_attribute("game")))
+    turtle.write(label, font=('Arial', args.font_size, 'normal'))
     turtle.penup()
 
 
@@ -150,11 +149,13 @@ def draw_place(place):
         assign_place(place)
 
 
-def draw_floorplan() :
+def draw_floorplan(floorplan) :
     for x in range(args.n_rows) : 
         for y in range(args.n_cols) :
-            if classroom[x][y] != 0 :
-                draw_place(classroom[x][y])
+            if floorplan[x][y] != 0 :
+                draw_place(floorplan[x][y])
+    screen.update()
+    
 
 
 def add_table(x_start, y_start, table) :
@@ -170,6 +171,51 @@ def add_table(x_start, y_start, table) :
             n_places = n_places + 1
             classroom[x][y] = place
             table.add_place(place)
+
+
+def generate_random_table() :
+    coin = rng.randint(0, 1)
+    if coin == 0 :
+        divide = Divide.HORIZONTAL 
+        x_length = rng.randint(2, 4)
+        y_length = 2
+    else :
+        divide = Divide.VERTICAL
+        x_length = 2
+        y_length = rng.randint(2, 4)
+    return Table(x_length, y_length, divide)
+
+
+def space_is_empty(x, y, table) : 
+    for i in range(x, x + table.x_length) :
+        for j in range(y, y + table.y_length) :
+            if classroom[i][j] != 0 : return False
+            if classroom[i - 1][j] != 0 : return False
+            if classroom[i][j - 1] != 0 : return False
+            if classroom[i - i][j - 1] != 0 : return False
+            if j + 1 != args.n_cols :
+                if classroom[i][j + 1] != 0 : return False
+                if classroom[i - 1][j + 1] != 0 : return False
+            if i + 1 != args.n_rows :
+                if classroom[i + 1][j] != 0 : return False
+
+
+def check_boundary(x, y, table) :
+    if (x == 0 or x + table.x_length == args.n_cols) and table.divide == Divide.VERTICAL : return False
+    if (y == 0 or y + table.y_length == args.n_rows) and table.divide == Divide.HORIZONTAL : return False
+    if (x + table.x_length <= args.n_cols) and (y + table.y_length <= args.n_rows) : return True
+    else : return False
+
+
+def generate_random_floorplan() :
+    for x in range(0, args.n_cols) :
+        for y in range(0, args.n_rows) :       
+            table = generate_random_table()
+            if check_boundary(x, y, table) != False :
+                if space_is_empty(x, y, table) != False :
+                    add_table(x, y, table)
+    if(args.log_level > 1) : print("Table count = " + str(len(tables)))
+    if(args.log_level > 1) : print("Place count = " + str(n_places))
 
 
 def do_random_assignment() :
@@ -236,6 +282,8 @@ def find_adjacent(place) :
 def solve(rules) :
     iterations = 0
     max_fitness = n_places * len(rules) 
+    candidate_fitness = 0
+    candidate_solution = [[0 for i in range(args.n_cols)] for j in range(args.n_rows)]
     start_time = time.time()
     while iterations < args.max_iterations :
         # apply rules and do swaps
@@ -246,22 +294,18 @@ def solve(rules) :
                 if appy_rules(rules, place.student, adjacent.student) == False :
                     if (table.x_length > 2) or (table.y_length > 2) :
                         coin = rng.randint(0, 2)
-                        if coin == 0 :
-                            student_swap_opposite(place)
-                        elif coin == 1 :
-                            student_swap_adjacent(place)
-                        else :
-                            student_swap_random(table, place)
+                        if coin == 0 : student_swap_opposite(place)
+                        elif coin == 1 : student_swap_adjacent(place)
+                        else : student_swap_random(table, place)
                     else :
                         student_swap_opposite(place)
                     if args.show == True :
                         screen.update()
                         time.sleep(args.frame_delay)
-                    break
+                    break 
         # compute table fitness
         for table in tables :
             compute_table_fitness(rules, table)
-
         # find unfit tables 
         unfit = []
         solution_fitness = 0
@@ -272,25 +316,34 @@ def solve(rules) :
         if args.show == True :
             solution_fitness = float(solution_fitness) / max_fitness
             print(str(iterations) + ": Solution fitness = " + "{:.2%}".format(solution_fitness))
-
         if solution_fitness >= args.target_fitness :
             exec_time = (time.time() - start_time)
-            print("Solved after " + str(iterations) + " iterations, in " +str(round(exec_time, 2)) + " seconds. Throughput: " + str(round(iterations / exec_time, 2)))
-            solution_fitness = float(solution_fitness) / float(max_fitness)
-            print(str(iterations) + ": Solution fitness = " + "{:.2%}".format(solution_fitness))
-            screen.update()
+            if(args.log_level > 0) : print("Solved after " + str(iterations) + " iterations, in " +str(round(exec_time, 2)) + " seconds. Throughput: " + str(round(iterations / exec_time, 2)))
+            if(args.log_level > 0) : print(str(iterations) + ": Solution fitness = " + "{:.2%}".format(float(solution_fitness) / float(max_fitness)))
+            if args.display_level > 0 : screen.update()
             break
         else :
             if iterations % args.migration_interval == 0 :
                 student_swap_table_random(tables)
-
+        if candidate_fitness < solution_fitness :
+            candidate_fitness = solution_fitness
+            candidate_solution = classroom
+            for i in range(0, args.n_rows) :
+                for j in range(0, args.n_cols) :
+                    candidate_solution[i][j] = classroom[i][j]
+            if args.display_level > 1 : draw_floorplan(candidate_solution)
+            if(args.log_level > 1) : print(str(iterations) + " iterations, solution fitness = " + "{:.2%}".format(float(solution_fitness) / float(max_fitness)))
         iterations = iterations + 1
         if (iterations % 50 == 0) and (len(tables) == 1) :
-            print("No solution after " + str(iterations) + " shuffling table.")
+            if(args.log_level > 1) : print("No solution after " + str(iterations) + " shuffling table.")
             for i in range(0, len(unfit)) :
                 rng.shuffle(unfit[i].desks)
     if iterations == args.max_iterations :
-        print("No solution found after max ietarions: " + str(args.max_iterations))
+        exec_time = (time.time() - start_time)
+        if(args.log_level > 0) : print("No solution found after max iterations: " + str(args.max_iterations) + " displaying best candidate.")
+        if args.display_level > 0 : draw_floorplan(candidate_solution)
+    if args.log_level == 0 : print(str(iterations) + "," + str(round(iterations / exec_time, 2)) +"," + str(exec_time))
+
 
 def student_swap_random(table, place) :
     index = rng.randint(0, len(table.places) - 1)
@@ -323,20 +376,41 @@ def student_swap_adjacent(desk) :
 
 def click_handler(x, y) :
     do_random_assignment()
-    draw_floorplan()
-    screen.update()
+    if args.display_level > 0 : draw_floorplan(classroom)
     solve(rules)
-    draw_floorplan()
-    screen.update()
+    if args.display_level > 0 : draw_floorplan(classroom)
     screen.onclick(click_handler)
+
+
+def run_display() :
+    global screen
+    screen = turtle.Screen()
+    screen.setup(width=args.canvas_width, height=args.canvas_height)
+    turtle.title("pyseater")
+    turtle.Turtle(visible=False)
+    screen.tracer(False)
+    turtle.penup()
+    draw_classroom(args.n_cols, args.n_rows)
+    draw_floorplan(classroom)
+    screen.onclick(click_handler)
+    turtle.hideturtle()
+    screen.mainloop()
+
+
+def run_batch() :
+    print("iterations,throughput,exec_time")
+    for _ in range(0, args.batch_size) :
+        do_random_assignment()
+        solve(rules)
 
 
 parser = argparse.ArgumentParser(description="pyseater - generate classroom seating plans according to some rules")
 parser.add_argument("--rules", metavar="ATTRIBUTE=BOOL", nargs='+', help="specify a list of rules as key=value pairs, e.g. language=false.")
 parser.add_argument("--seed", help="provide a random seed to get deterministic behaviour", type=int)
-parser.add_argument("--show", help="show the evolution of the seating plan, can be very slow", action='store_true')
+parser.add_argument("--show", help="show the evolution of the seating plan, can be very slow", action="store_true")
 parser.add_argument("--frame_delay", help="delay after each refresh, only relevant when --show is set", default=0.05, type=float)
 parser.add_argument("--place_size", help="size in pixels of a seating place, i.e. one square on the grid", default=70, type=int)
+parser.add_argument("--font_size", help="font size of text displayed on places", default=8, type=int)
 parser.add_argument("--n_rows", help="the number of rows in the floorplan", default=10, type=int)
 parser.add_argument("--n_cols", help="the number of columns in the floorplan", default=10, type=int)
 parser.add_argument("--max_iterations", help="maximum solver iterations before giving up", default=1000000, type=int)
@@ -345,23 +419,32 @@ parser.add_argument("--student_file", help="csv file containing student data", d
 parser.add_argument("--migration_interval", help="number of iterations between random student table migrations", default=5, type=int)
 parser.add_argument("--canvas_width", help="width of the display canvas in pixels", default=800, type=int)
 parser.add_argument("--canvas_height", help="height of the display canvas in pixels", default=800, type=int)
-parser.add_argument("--batch", help="generate <batch size> seating plans, ", default=0, type=int)
-
-
+parser.add_argument("--batch_size", help="generate batch size seating plans, ", default=0, type=int)
+parser.add_argument("--random_tables", help="fill floorplan with random tables", action="store_true")
+parser.add_argument("--log_level", help="logging increases with log level", default=1, type=int)
+parser.add_argument("--display_level", help="increasing level of screen updates", default=1, type=int)
 args = parser.parse_args()
 rules = parse_rules(args.rules)
+
+tables = []
+n_places = 0
+n_students = 0
+
+if args.batch_size != 0 :
+    args.display_level = 0
+    args.log_level = 0
 
 if len(rules) == 0 :
     rules.append(Rule("gender", False))
     rules.append(Rule("language", False))
     rules.append(Rule("game", False))
 
-print("Applying rules:")
+if(args.log_level > 0) : print("Applying rules:")
 for rule in rules :
-    print(str(rule.attribute) + " = " + str(rule.boolean))
+    if(args.log_level > 0) : print("\t" + str(rule.attribute) + " = " + str(rule.boolean))
 
 if args.seed :
-    print("Seed will be set to " + str(args.seed))
+    if(args.log_level > 0) : print("Seed will be set to " + str(args.seed))
     rng.seed(args.seed)
 
 START_X = -(args.place_size * (0.5 * args.n_cols))
@@ -369,30 +452,19 @@ START_Y = (args.place_size * (0.5 * args.n_rows))
 
 classroom = [[0 for i in range(args.n_cols)] for j in range(args.n_rows)]
 
-add_table(0, 2, Table(2, 2, Divide.HORIZONTAL))
-add_table(4, 2, Table(2, 2, Divide.VERTICAL))
-add_table(8, 6, Table(2, 2, Divide.HORIZONTAL))
-add_table(4, 6, Table(2, 3, Divide.VERTICAL))
-add_table(0, 6, Table(2, 2, Divide.HORIZONTAL))
+if args.random_tables == True :
+    if(args.log_level > 0) : print("Generating random floorplan.")
+    generate_random_floorplan() 
+else :
+    add_table(0, 2, Table(2, 2, Divide.HORIZONTAL))
+    add_table(4, 2, Table(2, 2, Divide.VERTICAL))
+    add_table(8, 6, Table(2, 2, Divide.HORIZONTAL))
+    add_table(4, 6, Table(2, 3, Divide.VERTICAL))
+    add_table(0, 6, Table(2, 2, Divide.HORIZONTAL))
 
 if args.target_fitness :
-    print("Target fitness set to " + str(args.target_fitness) + "%")
+    if(args.log_level > 0) : print("Target fitness set to " + str(args.target_fitness) + "%")
 args.target_fitness = (args.target_fitness / 100) * (len(rules) * n_places)
 
-screen = turtle.Screen()
-screen.setup(width=args.canvas_width, height=args.canvas_height)
-turtle.title("pyseater")
-turtle.Turtle(visible=False)
-screen.tracer(False)
-turtle.penup()
-draw_classroom(args.n_cols, args.n_rows)
-draw_floorplan()
-
-if args.batch != 0 :
-    for _ in range(args.batch) :
-        click_handler(0, 0)
-
-else:
-    screen.onclick(click_handler)
-    turtle.hideturtle()
-    screen.mainloop()
+if args.batch_size != 0 : run_batch()
+else : run_display()
