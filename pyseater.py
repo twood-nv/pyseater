@@ -216,8 +216,8 @@ def generate_random_table() :
 
 
 def space_is_empty(x, y, table) : 
-    for i in range(x, x + table.x_length) :
-        for j in range(y, y + table.y_length) :
+    for i in range(x, x + table.x_length + 1) :
+        for j in range(y, y + table.y_length + 1) :
             if classroom[i][j] != 0 : return False
             if classroom[i - 1][j] != 0 : return False
             if classroom[i][j - 1] != 0 : return False
@@ -229,9 +229,11 @@ def space_is_empty(x, y, table) :
                 if classroom[i + 1][j] != 0 : return False
 
 
+
+
 def check_boundary(x, y, table) :
-    if (x == 0 or x + table.x_length == args.n_cols) and table.divide == Divide.VERTICAL : return False
-    if (y == 0 or y + table.y_length == args.n_rows) and table.divide == Divide.HORIZONTAL : return False
+    if (x == 0 or x + table.x_length == args.n_cols +1) and table.divide == Divide.VERTICAL : return False
+    if (y == 0 or y + table.y_length == args.n_rows + 1) and table.divide == Divide.HORIZONTAL : return False
     if (x + table.x_length <= args.n_cols) and (y + table.y_length <= args.n_rows) : return True
     else : return False
 
