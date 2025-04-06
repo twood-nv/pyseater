@@ -1,0 +1,24 @@
+# Possible colours: https://cs111.wellesley.edu/labs/lab02/colors
+name,language,game,gender,colour
+0,Welsh,Roblox,M,coral
+1,Greek,Minecraft,F,lightpink
+2,German,Roblox,M,coral
+3,Hindi,Minecraft,F,chartreuse
+4,Danish,GTAV,M,darkorange
+5,Welsh,Minecraft,M,darkorange
+6,Russian,Roblox,F,cyan
+7,Greek,Roblox,F,darkorange
+8,German,GTAV,M,lightblue
+9,Hindi,Tetris,F,chartreuse
+10,Danish,Tetris,M,cyan
+11,Russian,Tetris,F,lightpink
+12,Welsh,Roblox,M,cyan
+13,Greek,Minecraft,F,darkorange
+14,German,GTAV,M,lightblue
+15,Hindi,Roblox,F,coral
+16,Danish,Minecraft,M,chartreuse
+17,Russian,Roblox,F,coral
+18,Welsh,Minecraft,M,lightblue
+19,Greek,GTAV,F,lightpink
+20,German,Roblox,M,cyan
+21,Hindi,Minecraft,F,chartreuse

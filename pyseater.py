@@ -136,9 +136,10 @@ def draw_place(place):
     turtle.penup()
     turtle.goto(START_X + (place.x * args.place_size), START_Y - (place.y * args.place_size))
     turtle.pendown()
-    if place.student == 0 :  turtle.fillcolor("lightblue")
-    elif place.student.get_attribute("gender") == "M" :  turtle.fillcolor("lightblue")
-    else : turtle.fillcolor("lightpink")
+    if place.student == 0 :  turtle.fillcolor("darkgray")
+    elif "colour" in place.student.attributes : 
+        turtle.fillcolor(place.student.get_attribute("colour"))
+    else : turtle.fillcolor("lightblue")
     turtle.begin_fill()
     for side in range(4):
         if side == place.orientate.value :
@@ -323,7 +324,7 @@ def process_table(table) :
 
 def solve() :
     iterations = 0
-    perfect_fitness = n_places * max(len(adj_rules), 1) * max(len(ops_rules), 1)
+    perfect_fitness = n_places * (len(adj_rules) + len(ops_rules))
     best_fitness = 0
     solution_found = False    
     start_time = time.time()
@@ -440,10 +441,10 @@ if len(adj_rules) == 0 :
     adj_rules.append(Rule("language", False))
     adj_rules.append(Rule("game", False))
 
-if len(ops_rules) == 0 :
-    ops_rules.append(Rule("gender", False))
-    ops_rules.append(Rule("language", False))
-    ops_rules.append(Rule("game", False))
+# if len(ops_rules) == 0 :
+#     ops_rules.append(Rule("gender", False))
+#     ops_rules.append(Rule("language", False))
+#     ops_rules.append(Rule("game", False))
 
 if(args.log_level > 0) : print("Applying rules:")
 for adj_rule in adj_rules :
@@ -472,7 +473,7 @@ else :
 
 if args.target_fitness :
     if(args.log_level > 0) : print("Target fitness set to " + str(args.target_fitness) + "%")
-args.target_fitness = (args.target_fitness / 100) * (n_places * max(len(adj_rules), 1) * max(len(ops_rules), 1))
+args.target_fitness = (args.target_fitness / 100) * (n_places * (len(adj_rules) + len(ops_rules)))
 
 if args.batch_size != 0 : run_batch()
 else : run_display()
