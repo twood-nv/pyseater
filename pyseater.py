@@ -54,6 +54,14 @@ class Rule:
         self.boolean = boolean
 
 
+def print_progress_bar (current_fitness, target_fitness, best_fitness, decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    current_percent = ("{0:." + str(decimals) + "f}").format(100 * (current_fitness / float(target_fitness)))
+    best_percent = ("{0:." + str(decimals) + "f}").format(100 * (best_fitness / float(target_fitness)))
+    filledLength = int(length * current_fitness // target_fitness)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{"Current: "} |{bar}| {current_percent}% {"Best: "} {best_percent}%', end = printEnd)
+
+
 def str2bool(str) :
     return str.lower() in ("t", "true", "1")
 
@@ -76,7 +84,7 @@ def parse_rules(rule_strings) :
 
 def read_students() :
     with open(args.student_file, 'r', encoding='utf-8-sig') as file:
-        reader = csv.reader(file)
+        reader = csv.reader(filter(lambda row: row[0]!='#', file))
         keys = next(reader)
         students = []
         for row in reader :
@@ -284,21 +292,26 @@ def apply_rule(rule, student_a, student_b) :
     return 0 if rule.boolean != (student_a.get_attribute(rule.attribute) == student_b.get_attribute(rule.attribute)) else 1
 
 
-def apply_rules(rules, student_a, student_b) :
-    for rule in rules :        
+def apply_ruleset(ruleset, student_a, student_b) :
+    for rule in ruleset :        
         if apply_rule(rule, student_a, student_b) == 0 : return False
 
 
 def compute_table_fitness(table) :
     table.fitness = 0
     for place in table.places :
-        for rule in rules :
+        for rule in adj_rules :
             table.fitness = table.fitness + apply_rule(rule, place.student, place.adjacent.student)
+        for rule in ops_rules :
+            table.fitness = table.fitness + apply_rule(rule, place.student, place.opposite.student)
 
 
-def process_table(table, rules) :
+def process_table(table) :
     for place in table.places :
-        if apply_rules(rules, place.student, place.adjacent.student) == False :
+        # apply multiple rulsets here!
+        fit = apply_ruleset(adj_rules, place.student, place.adjacent.student)
+        fit = apply_ruleset(ops_rules, place.student, place.opposite.student)
+        if fit == False :
             if (table.x_length > 2) or (table.y_length > 2) :
                 coin = rng.randint(0, 2)
                 if coin == 0 : swap_students(place, place.opposite)
@@ -310,14 +323,15 @@ def process_table(table, rules) :
 
 def solve() :
     iterations = 0
-    perfect_fitness = n_places * len(rules)
+    perfect_fitness = n_places * max(len(adj_rules), 1) * max(len(ops_rules), 1)
+    best_fitness = 0
     solution_found = False    
     start_time = time.time()
 
     while iterations < args.max_iterations :
         # Apply rules and do swaps
         for table in tables :
-            process_table(table, rules)
+            process_table(table)        
 
         # Compute table fitness
         for table in tables :
@@ -327,6 +341,10 @@ def solve() :
         solution_fitness = 0
         for table in tables :
             solution_fitness = solution_fitness + table.fitness
+
+        if(args.log_level > 0) : 
+            if solution_fitness > best_fitness: best_fitness = solution_fitness
+            print_progress_bar(solution_fitness, args.target_fitness, best_fitness, length = 50)
             
         # Check fitness
         if solution_fitness >= args.target_fitness :
@@ -336,6 +354,7 @@ def solve() :
         else :
             if iterations % args.migration_interval == 0 :
                 student_swap_table_random(tables)
+
         iterations = iterations + 1
 
     # End, do reporting
@@ -343,10 +362,10 @@ def solve() :
         exec_time = (time.time() - start_time)
         if (solution_found == True) and (args.log_level > 0) :
             percentage_fitness = (solution_fitness / perfect_fitness) * 100
-            print("SUCCESS, " + str(round(percentage_fitness, 2)) + "% after " + str(iterations) + " iterations, in " +str(round(exec_time, 2)) + " seconds. Throughput: " + str(round(iterations / exec_time, 2)))
+            print("\nSUCCESS, " + str(round(percentage_fitness, 2)) + "% after " + str(iterations) + " iterations, in " +str(round(exec_time, 2)) + " seconds. Throughput: " + str(round(iterations / exec_time, 2)))
             screen.update()
         elif (solution_found == False) and (args.log_level > 0) :
-            print("FAIL, no solution after " + str(iterations) + " iterations, in " +str(round(exec_time, 2)) + " seconds. Throughput: " + str(round(iterations / exec_time, 2)))
+            print("\nFAIL, no solution after " + str(iterations) + " iterations, in " +str(round(exec_time, 2)) + " seconds. Throughput: " + str(round(iterations / exec_time, 2)))
     if args.log_level == 0 : print(str(solution_found) + "," + str(iterations) + "," + str(round(iterations / exec_time, 2)) +"," + str(exec_time))
 
 
@@ -386,7 +405,8 @@ def run_batch() :
 
 
 parser = argparse.ArgumentParser(description="pyseater - generate classroom seating plans according to some rules")
-parser.add_argument("--rules", metavar="ATTRIBUTE=BOOL", nargs='+', help="specify a list of rules as key=value pairs, e.g. language=false.")
+parser.add_argument("--adj_rules", metavar="ATTRIBUTE=BOOL", nargs='+', help="specify a list of rules for adjacent desks as key=value pairs, e.g. language=false.")
+parser.add_argument("--ops_rules", metavar="ATTRIBUTE=BOOL", nargs='+', help="specify a list of rules for opposite desks as key=value pairs, e.g. language=false.")
 parser.add_argument("--seed", help="provide a random seed to get deterministic behaviour", type=int)
 parser.add_argument("--frame_delay", help="delay after each refresh, only relevant when --show is set", default=0.05, type=float)
 parser.add_argument("--place_size", help="size in pixels of a seating place, i.e. one square on the grid", default=70, type=int)
@@ -404,7 +424,8 @@ parser.add_argument("--random_tables", help="fill floorplan with random tables",
 parser.add_argument("--log_level", help="logging increases with log level", default=1, type=int)
 parser.add_argument("--display_level", help="increasing level of screen updates", default=1, type=int)
 args = parser.parse_args()
-rules = parse_rules(args.rules)
+adj_rules = parse_rules(args.adj_rules)
+ops_rules = parse_rules(args.ops_rules)
 
 tables = []
 n_places = 0
@@ -414,14 +435,21 @@ if args.batch_size != 0 :
     args.display_level = 0
     args.log_level = 0
 
-if len(rules) == 0 :
-    rules.append(Rule("gender", False))
-    rules.append(Rule("language", False))
-    rules.append(Rule("game", False))
+if len(adj_rules) == 0 :
+    adj_rules.append(Rule("gender", False))
+    adj_rules.append(Rule("language", False))
+    adj_rules.append(Rule("game", False))
+
+if len(ops_rules) == 0 :
+    ops_rules.append(Rule("gender", False))
+    ops_rules.append(Rule("language", False))
+    ops_rules.append(Rule("game", False))
 
 if(args.log_level > 0) : print("Applying rules:")
-for rule in rules :
-    if(args.log_level > 0) : print("\t" + str(rule.attribute) + " = " + str(rule.boolean))
+for adj_rule in adj_rules :
+    if(args.log_level > 0) : print("\tadjacent: " + str(adj_rule.attribute) + " = " + str(adj_rule.boolean))
+for ops_rule in ops_rules :
+    if(args.log_level > 0) : print("\topposite:" + str(ops_rule.attribute) + " = " + str(ops_rule.boolean))
 
 if args.seed :
     if(args.log_level > 0) : print("Seed will be set to " + str(args.seed))
@@ -444,7 +472,7 @@ else :
 
 if args.target_fitness :
     if(args.log_level > 0) : print("Target fitness set to " + str(args.target_fitness) + "%")
-args.target_fitness = (args.target_fitness / 100) * (len(rules) * n_places)
+args.target_fitness = (args.target_fitness / 100) * (n_places * max(len(adj_rules), 1) * max(len(ops_rules), 1))
 
 if args.batch_size != 0 : run_batch()
 else : run_display()
